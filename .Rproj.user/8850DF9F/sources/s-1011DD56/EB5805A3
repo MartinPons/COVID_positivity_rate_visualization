@@ -1,0 +1,24 @@
+{
+    "id": "EB5805A3",
+    "path": "~/COVID_positivity_rate_visualization/positivity_rate_animation.R",
+    "project_path": "positivity_rate_animation.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": true,
+    "created": 1611179109723.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "cursorPosition": "218,0",
+        "scrollLine": "188"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1611178003,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1611179137962,
+    "read_only": false,
+    "read_only_alternatives": []
+}

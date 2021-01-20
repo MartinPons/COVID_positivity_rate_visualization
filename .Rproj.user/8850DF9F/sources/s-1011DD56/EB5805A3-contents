@@ -1,0 +1,218 @@
+# Visualització animada de la Incidència Acumulada i positivitat de SARS-CoV-2  a les Illes Balears, didivid per Illa
+# El Govern de les Illes Balears publica regularment les dades. El historic està disponible a: https://www.caib.es/sites/covid-19/ca/situacio_sanitaria_covid-19/
+
+# La visualització esta inspirada en els gràfics que publica regularment Daniel Ruiz Aguilera al seu compte a Twitter (@druizaguilera)
+
+# CONFIGURACIÓ INICIAL ----------------------------------------------------
+
+# llibreries
+library(tidyverse)
+library(readxl)
+library(gganimate)
+library(ggthemes)
+library(Cairo)
+library(glue)
+library(extrafont)
+library(lubridate)
+
+# dates de la sessió en català per etiquetes de mes en la visualització
+Sys.setlocale("LC_TIME", "cat")
+
+# constants
+
+# nom de les illes
+illes <- c("Mallorca", "Menorca", "Eivissa", "Formentera")
+
+
+# DATA WRANGLING ----------------------------------------------------------
+
+# indicèndia acumulada
+ia <- read_excel(here::here("ANALISI PDIA per municipis_EAP DADES.xlsx"), 
+                 sheet = "IA7D", skip = 3) %>% 
+  rename(illa = `IA 7D PER ILLES`) %>% 
+  filter(illa %in% illes) %>% 
+  select(-Padró) %>% 
+  pivot_longer(names_to = "data", 
+               values_to = "ia", 
+               cols = 2:ncol(.)) %>% 
+  
+  # dades carregades com valor numeric. Es pre l'inici que te marcat Excel com origin
+  mutate(data = as.Date(as.numeric(data), origin = "1899-12-30")) 
+
+# positivitat
+pos <-  read_excel(here::here("ANALISI PDIA per municipis_EAP DADES.xlsx"), 
+                   sheet = "TP7D", skip = 3) %>% 
+  rename(illa = `Tp 7D PER ILLES`) %>% 
+  filter(illa %in% illes) %>% 
+  pivot_longer(names_to = "data", 
+               values_to = "pos", 
+               cols = 2:ncol(.)) %>% 
+  
+  # dades carregades com valor numeric. Es pre l'inici que te marcat Excel com origin
+  mutate(data = as.Date(as.numeric(data), origin = "1899-12-30")) 
+
+# fusió de taules de incidència i positivitat
+df <- ia %>% 
+  inner_join(pos, 
+             by = c("illa", "data")) %>% 
+  filter(data < Sys.Date()) %>% 
+  
+  # filtre de dades amb origin setembre
+  filter(data >= "2020-09-01") %>% 
+  mutate(illa = factor(illa, levels = illes)) %>% 
+  group_by(illa) %>% 
+  
+  # maxim de positivitat i ìncidencia emprat com referència per etiquetes de texte
+  mutate(across(ia:pos, .fns = max, .names = "{.col}_max"), 
+         mes = str_to_title(month(data, label = TRUE, abbr = FALSE)))
+
+
+## wrangling polygons: nivells d'alarma
+
+# Les àrees per diferents nivells d'alarma es creen amb geom_polygom. 
+# S'han de donar les coordenades dels poligons asignar data per que la animaciò 
+# funcioni asignar limits de coordenades en cas de que el limit màxim per illa
+# no superi el limit de l'alarma.
+
+
+wrangling_polygons <- function(df, trib) {
+  
+  # Crea les dades dels limits de les alarmes, a ser emprades per geom_polygon en la visualiztació
+  
+  # Inputs:
+    # -df (tibble): dades de positivitat (pos) i incidència (ia) en format tidy agrupat per illes (illa)
+    # -trib (tibble): taules amb les coordenades de positivitat (pos) i incidència (ia) per les alarmes
+    #                 amb format adequat per geom_polygon
+  
+  # Returns:
+    # - tibble amb les coordenades dels poligons d'alarma, que es mantenen constants per cada illa i cada data
+  
+  max_pos_illa <- df %>% 
+    group_by(illa) %>% 
+    summarise(max_pos = max(pos))
+  
+  trib <- trib %>% 
+    expand_grid(illa = factor(illes, level = illes)) %>% 
+    left_join(max_pos_illa) %>% 
+    group_by(illa) %>% 
+    mutate(pos = ifelse(pos < max_pos, pos, Inf)) 
+  
+    expand_grid(data = unique(df$data), trib)
+  
+}
+
+# creació de dades basiques amb les coordenades dels limits de les alarmes
+yellow_polygon <- tribble(
+  ~ia, ~pos, 
+  0, 0,
+  150, 0,
+  150, 0.04,
+  50, 0.04, 
+  50, 0.12,
+  0, 0.12,
+  
+) 
+
+green_polygon <- tribble(
+  ~ia,  ~pos, 
+  0, 0, 
+  25, 0, 
+  25, 0.04, 
+  0, 0.04)
+
+red_polygon <- tribble(
+  ~ia,  ~pos, 
+  0, 0, 
+  Inf, 0, 
+  Inf, Inf, 
+  0, Inf)
+
+# adició de dates, illes i substitució dels valors màxims en els casos en els que sigui adient
+df_yellow_polygon <- wrangling_polygons(df, yellow_polygon)
+df_green_polygon <- wrangling_polygons(df, green_polygon)
+df_red_polygon <- wrangling_polygons(df, red_polygon)
+
+
+
+# VISUALIZTACIÓ -----------------------------------------------------------
+
+## paràmetres de visualització ##
+
+# tema
+theme_set(theme_tufte())
+
+# colors de les línees
+palette1 <- c("#6d0903", "#ba7361", "#01356d", "#7685b4", "grey45")
+
+# color de les etiquetes de texte interiors
+text_color <- "#655b4e"
+
+# colors d' etiquetes del tema del gràfic
+theme_text_color = "#453e35"
+
+# gràfic en ggplot
+g <- df %>% 
+  ggplot(aes(ia, pos)) + 
+  
+  # formes dels limits de les alarmes
+  geom_polygon(data = df_red_polygon, aes(ia, pos), fill = "#f0d7d1") + 
+  geom_polygon(data = df_yellow_polygon, aes(ia, pos), fill = "#e6e1bd", color = "white", size = 1.5) +
+  geom_polygon(data = df_green_polygon, aes(ia, pos), fill = "#cce8d4", color = "white", size = 1.5) + 
+
+  # línees i punts de positivitat i incidència
+  geom_path(aes(color = illa), show.legend = F, alpha = 0.3, size = 1) +
+  geom_point(aes(color = illa), show.legend = F, size = 3) +
+  
+  # etiquetes amb dades representades numèricament
+  geom_text(x = 10, 
+            family = "Candara",
+            hjust = "left", 
+            color = text_color,
+            aes(y = pos_max * 0.92,
+                label = paste0("Data: ", format(data, "%d/%m/%Y"), "\n",
+                               "Positivitat: ", scales::percent(pos, accuracy = 1), "\n", 
+                               "IA: ", round(ia)))) +
+ 
+  
+  # nom del mes
+  geom_text(aes(x = ia_max / 2, y = pos_max * 0.95, label = mes), color = text_color, size = 5) +
+
+  # titles i etiquetes externes
+  labs(title = "SARS-CoV-2: Positivitat i IA 7D a les Illes Balears", 
+       subtitle = glue("Del {format(min(df$data), '%d/%m/%Y')} fins al {format(max(df$data), '%d/%m/%Y')}"),
+       x = "Incidència Acumulada 7D", 
+       y = "Positivitat 7D",
+       caption = "Dades publicades per @salutGOIB. Inspirat per @druizaguilera. Elaborat per Martín Pons |@MartinPonsM") + 
+  
+  # small multiples per illa
+  facet_wrap(~illa, scales = "free") + 
+  
+  # tema
+  theme(
+    text = element_text(family = "Candara", color = theme_text_color),
+    plot.title = element_text(hjust = 0.5, size = 17),
+    plot.subtitle = element_text(hjust = 0.5, size = 15),
+    plot.caption = element_text(hjust = 0.5, size = 11),
+    panel.grid = element_line(color = "white", size = 0.3),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(color = NA, fill = NA),
+    panel.ontop = TRUE,
+    panel.border = element_blank(),
+    axis.line = element_line(color = "grey45"), 
+    axis.title = element_text(size = 12), 
+    axis.text = element_text(size = 12), 
+    strip.text = element_text(size = 17, color = theme_text_color)) + 
+  scale_color_manual(values = palette1[1:4]) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) 
+
+# afegit de capes d'animació
+g_animated <- g +
+  transition_reveal(along = data) +
+  enter_fade() + 
+  exit_fade()
+
+# visualitació animada
+animate(g_animated, nframes = 300, fps = 10, type = "cairo", height = 650, width = 650)
+
+# gravació de la visualització animada
+anim_save(here::here("path_animation.gif"))

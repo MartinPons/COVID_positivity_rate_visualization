@@ -3,22 +3,22 @@
     "path": "~/COVID_positivity_rate_visualization/positivity_rate_animation.R",
     "project_path": "positivity_rate_animation.R",
     "type": "r_source",
-    "hash": "3182607718",
+    "hash": "1867747017",
     "contents": "",
     "dirty": false,
     "created": 1611179109723.0,
     "source_on_save": false,
     "relative_order": 2,
     "properties": {
-        "cursorPosition": "218,0",
-        "scrollLine": "188"
+        "cursorPosition": "60,30",
+        "scrollLine": "47"
     },
     "folds": "",
-    "lastKnownWriteTime": 1611216385,
+    "lastKnownWriteTime": 1611220899,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1611216385784,
+    "last_content_update": 1611220899885,
     "read_only": false,
     "read_only_alternatives": []
 }

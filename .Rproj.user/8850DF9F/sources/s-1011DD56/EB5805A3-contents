@@ -58,7 +58,7 @@ df <- ia %>%
   filter(data < Sys.Date()) %>% 
   
   # filtre de dades amb origin setembre
-  filter(data >= "2020-09-01", data <= data_limit) %>% 
+  filter(data >= "2020-09-01") %>% 
   mutate(illa = factor(illa, levels = illes)) %>% 
   group_by(illa) %>% 
   

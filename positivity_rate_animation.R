@@ -27,7 +27,7 @@ illes <- c("Mallorca", "Menorca", "Eivissa", "Formentera")
 # DATA WRANGLING ----------------------------------------------------------
 
 # indicèndia acumulada
-ia <- read_excel(here::here("datos_raw", "ANALISI PDIA per municipis_EAP DADES.xlsx"), 
+ia <- read_excel(here::here("Analisi PDIA per municipis_EAP 19012021 WEB.xlsx"), 
                  sheet = "IA7D", skip = 3) %>% 
   rename(illa = `IA 7D PER ILLES`) %>% 
   filter(illa %in% illes) %>% 
@@ -40,7 +40,7 @@ ia <- read_excel(here::here("datos_raw", "ANALISI PDIA per municipis_EAP DADES.x
   mutate(data = as.Date(as.numeric(data), origin = "1899-12-30")) 
 
 # positivitat
-pos <-  read_excel(here::here("datos_raw", "ANALISI PDIA per municipis_EAP DADES.xlsx"), 
+pos <-  read_excel(here::here("Analisi PDIA per municipis_EAP 19012021 WEB.xlsx"), 
                    sheet = "TP7D", skip = 3) %>% 
   rename(illa = `Tp 7D PER ILLES`) %>% 
   filter(illa %in% illes) %>% 
@@ -58,7 +58,7 @@ df <- ia %>%
   filter(data < Sys.Date()) %>% 
   
   # filtre de dades amb origin setembre
-  filter(data >= "2020-09-01") %>% 
+  filter(data >= "2020-09-01", data <= data_limit) %>% 
   mutate(illa = factor(illa, levels = illes)) %>% 
   group_by(illa) %>% 
   
@@ -215,4 +215,4 @@ g_animated <- g +
 animate(g_animated, nframes = 300, fps = 10, type = "cairo", height = 650, width = 650)
 
 # gravació de la visualització animada
-anim_save(here::here("figuras_finales", "path.gif"))
+anim_save(here::here("path_animation.gif"))
